@@ -55,7 +55,7 @@ function styleInit(prompterStyleElement) {
 
     
     dataManager.getItem('IFTeleprompterThemeStyles',function(data){
-        themeStyles = JSON.parse(data);
+        themeStyles = JSON.parse(data || null);
     },0,false);
 
     if (!themeStyles) {
@@ -116,9 +116,9 @@ function styleInit(prompterStyleElement) {
     
     defaultStyle = 1;
     dataManager.getItem('IFTeleprompterThemeDefaultStyle',function(data){
-        if(JSON.parse(data) != undefined) {
-            defaultStyle = JSON.parse(data);
-            console.log(defaultStyle);
+        var dataJSON = JSON.parse(data || null);
+        if(dataJSON) {
+            defaultStyle = dataJSON;
         }
     },0,false);
 
