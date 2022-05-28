@@ -116,6 +116,17 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         
         // Local Storage and Session data
         updateDatamanager();
+        if(!session){
+            session == {
+                html:'%3CH1%3EAwaiting%20controller...%3C%2FH1%3E'
+            } 
+            setInterval(function(){
+                updateDatamanager();
+                if(session){
+                    location.reload();
+                }
+            },3000);
+        }
 
         // Set initial relative values.
         setFocusHeight();
@@ -130,10 +141,14 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         initCSS();
 
         // Locate and set editor
-        if (window.opener)
+        if (window.opener){
             editor = window.opener;
-        else if (window.top)
+            console.log("Has Opener");
+        }
+        else if (window.top){
             editor = window.top;
+            console.log("Has Top");
+        }
         else if (ipcRenderer!==undefined) {
             // Untested code
             editor = {};
@@ -141,6 +156,33 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
                 ipcRenderer.send('asynchronous-message', event);
             }
         }
+
+        var socket = await new Promise((resolve,reject)=>{
+            
+            const sock = new WebSocket('ws://' + window.location.hostname + ':1337');
+
+            sock.onopen = function () {
+
+                const _postmessage = editor.postMessage;
+                editor.postMessage = function(event, domain) {
+                    sock.send(JSON.stringify(event));
+                    _postmessage.apply(this, arguments);
+                }
+                sock.onmessage = function (message) {
+
+                    console.log(Object.keys(command).find((x)=>{return command[x] == JSON.parse(message?.data)?.request}));
+                    _postmessage(message.data, getDomain());
+                    console.log(message.data);
+                };
+                resolve(sock);
+            };
+    
+            sock.onerror = function (error) {
+                console.log('WebSocket error: ' + error);
+            };
+
+        });
+
         resetSteps();
         // Animation settings
         play = true;
