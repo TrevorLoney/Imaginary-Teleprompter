@@ -277,6 +277,7 @@ h4 code {
 .bs-docs-nav {
     margin-bottom: 0;
     background-color: #fff;
+	background-color: rgb(51, 51, 51);
     border-bottom: 0
 }
 .bs-home-nav .bs-nav-b {
