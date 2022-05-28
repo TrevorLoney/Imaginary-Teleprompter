@@ -83,7 +83,7 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         styleSheet = styleElement.sheet;
     }
 
-    function init() {
+    async function init() {
         // Local variables
         var flip;
 
@@ -247,11 +247,11 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
 
     function updateDatamanager() {
         dataManager.getItem('IFTeleprompterSettings',function(data){
-            settings = JSON.parse(data);
+            settings = JSON.parse(data || null);
         },1,false);
         
         dataManager.getItem('IFTeleprompterSession',function(data){
-            session = JSON.parse(data);
+            session = JSON.parse(data || null);
         },1,false);
         // Ensure content is being passed
         // console.log(session);
