@@ -30,15 +30,7 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
 
 // Encapsulate the code in an anonymous self-invoking function.
 (function () {
-    // Import Electron libraries.
-    if (inElectron() && !inIframe()) {
-        var {ipcRenderer} = require('electron');
-        window.jQuery = require('./js/jquery.min.js');
-        window.$ = window.jQuery;
-        // Manually import jQuery from javascript when running in a CommonsJS environment.
-        // Ref: https://github.com/electron/electron/issues/254 
-        remote = require('electron').remote; // Allow IPC with main process in Electron.
-    }
+
     // Global objects
     var settings, session, prompt, pointer, overlay, overlayFocus, styleSheet, editor, timer, clock, remote;
     // Global variables
@@ -115,18 +107,18 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         isMobileApp = false;
         
         // Local Storage and Session data
-        updateDatamanager();
-        if(!session){
-            session == {
-                html:'%3CH1%3EAwaiting%20controller...%3C%2FH1%3E'
-            } 
-            setInterval(function(){
-                updateDatamanager();
-                if(session){
-                    location.reload();
-                }
-            },3000);
-        }
+        // updateDatamanager();
+
+        // if(!session){
+        //     $("#waitingOverlay").addClass("active");
+        //     session = { html: '%3CH1%3EAwaiting%20controller...%3C%2FH1%3E'};
+        //     setInterval(function(){
+        //         updateDatamanager();
+        //         if(session){
+        //             location.reload();
+        //         }
+        //     }, 2000);
+        // }
 
         // Set initial relative values.
         setFocusHeight();
@@ -148,13 +140,6 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         else if (window.top){
             editor = window.top;
             console.log("Has Top");
-        }
-        else if (ipcRenderer!==undefined) {
-            // Untested code
-            editor = {};
-            editor.postMessage = function(event, domain) {
-                ipcRenderer.send('asynchronous-message', event);
-            }
         }
 
         var socket = await new Promise((resolve,reject)=>{
@@ -187,7 +172,7 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         // Animation settings
         play = true;
         // Get focus mode
-        focus = settings.data.focusMode;
+        focus = settings?.data?.focusMode;
 
         timer = $('.clock').timer({ stopVal: 10000 });
         // Get and set prompter text
@@ -195,13 +180,17 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         setPromptHeight();
         
         // Get prompter style
-        promptStyleOption = settings.data.prompterStyle;
-        customStyle = { "background": settings.data.background, "color": settings.data.color, "overlayBg": settings.data.overlayBg };
+        promptStyleOption = settings?.data?.prompterStyle;
+        customStyle = { "background": settings?.data?.background, "color": settings?.data?.color, "overlayBg": settings?.data?.overlayBg };
+        
         // Get flip settings
-        if (inIframe())
-            flip = settings.data.primary;
-        else
-            flip = settings.data.secondary;
+        if (inIframe()){
+            flip = settings?.data?.primary;
+        }
+        else {
+            flip = settings?.data?.secondary;
+        }
+            
         
         // Initialize flip values
         flipH = false;
@@ -219,6 +208,7 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
                 flipV = true;
                 break;
         }
+
         // Set focus area according to settings.
         switch (focus) {
             case 1:
@@ -287,6 +277,14 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         }, 750);
     }
 
+    function inIframe() {
+        try {
+            return window.self !== window.top;
+        } catch (e) {
+            return true;
+        }
+    }
+
     function updateDatamanager() {
         dataManager.getItem('IFTeleprompterSettings',function(data){
             settings = JSON.parse(data || null);
@@ -295,8 +293,6 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         dataManager.getItem('IFTeleprompterSession',function(data){
             session = JSON.parse(data || null);
         },1,false);
-        // Ensure content is being passed
-        // console.log(session);
     }
 
     function updateContents() {
@@ -309,10 +305,10 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         updateDatamanager();
         var oldFontSize = fontSize,
             oldPromptWidth = promptWidth;
-        fontSize = settings.data.fontSize/100;
-        speedMultip = settings.data.speed;
-        sensitivity = settings.data.acceleration;
-        promptWidth = settings.data.promptWidth;
+        fontSize = settings?.data?.fontSize/100;
+        speedMultip = settings?.data?.speed;
+        sensitivity = settings?.data?.acceleration;
+        promptWidth = settings?.data?.promptWidth;
         // If updating font, update it and resync
         if (oldFontSize !== fontSize)
             updateFont();
@@ -323,11 +319,11 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
             onResize();
             window.setTimeout(onResize, transitionDelays*1.1);
         }
-        prompt.innerHTML = decodeURIComponent(session.html);
+        prompt.innerHTML = decodeURIComponent(session?.html);
         updateVelocity();
         
         // Enable timer
-        if (settings.data.timer===true) {
+        if (settings?.data?.timer===true) {
             if (timer.data().timer.currentVal===0)
             timer.startTimer();
             clock.style.opacity = '1';
@@ -387,35 +383,6 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
             if (debug) console.log("Pointer start: "+pointer.startposition+"\nPointer at: "+pointerCurrPos+"\nDistance: "+distance+"\nDelta: "+pointer.delta) && false;
             // Move to pointed position.
             setCurrPosStill(argument);
-        }
-    }
-
-    /*
-    function atRest() {
-        if (debug) console.log("At rest") && false;
-        requestAnimationFrame(restorePointer);
-        syncPrompters();
-        internalPlayAnimation();
-    }
-
-    function restorePointer() {
-        if (debug) console.log("Restoring pointer position") && false;
-        setCurrPosStill( getCurrPos()-getCurrPos( document.getElementById("prompt") ) );
-        setCurrPosStill( 0, document.getElementById("prompt") );
-    }
-    */
-
-    function toggleDebug() {
-        // I do these the long way because debug could also be a numeric.
-        if (debug) {
-            debug = false;
-            console.log("Leaving debug mode.");
-        }
-        else {
-            debug = true;
-            if (inElectron() && !inIframe())
-                remote.getCurrentWindow().toggleDevTools();
-            console.log("Entering debug mode.");
         }
     }
 
@@ -485,34 +452,22 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
     }
 
     function instaSync() {
-        if (steps>syncDelay)
+        if (steps>syncDelay){
             editor.postMessage( {'request':command.iSync,'data':getProgress()}, getDomain() );
+        }
     }
 
     function updateVelocity() {
         // (|x|^sensitivity) * (+|-)
         velocity = speedMultip*Math.pow(Math.abs(x),sensitivity)*(x>=0?1:-1);
-        if (debug) setTimeout( function(){ console.log("Velocity: "+velocity); }), 0;
     }
     
     function atEnd() {
-        var flag;
-        if (flipV)
-            flag = getCurrPos() >= 0;
-        else
-            flag = getCurrPos() <= -(promptHeight-screenHeight);
-        if (debug&&flag) console.log("At top") && false;
-        return flag;
+        return flipV ? getCurrPos() >= 0 : getCurrPos() <= -(promptHeight-screenHeight);
     }
 
     function atStart() {
-        var flag;
-        if (flipV)
-            flag = getCurrPos() <= -(promptHeight-screenHeight);
-        else
-            flag = getCurrPos() >= 0;
-        if (debug&&flag) console.log("At bottom") && false;
-        return flag;
+        return flipV ? getCurrPos() <= -(promptHeight-screenHeight) : getCurrPos() >= 0;
     }
 
     function stopAll() {
@@ -542,11 +497,7 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         });
         return vars;
     }
-/*
-    function getAspectRatio() {
-        return screenWidth/screenHeight;
-    }
-*/
+
     // Solve for time to reach end.
     function getRemainingTime( destination, currPos ) {
         return (velocity ? Math.abs(1000*(destination-currPos)/(velocity*unit)) : 0 );
@@ -1161,16 +1112,6 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
     // Initialize postMessage event listener.
     addEventListener("message", listener, false);
 
-    // When calling from main process, run function to...
-    if (ipcRenderer!==undefined)
-        ipcRenderer.on('asynchronous-reply', function(event, arg) {
-            if (arg.option === "message") {
-                listener( {data:arg.data, domain:getDomain()} );
-            }
-        });
-
-    addEventListener("message", listener, false);
-
     function resetCap() {
         cap = false;
     }
@@ -1312,14 +1253,4 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
 
 }());
 
-function inIframe() {
-    try {
-        return window.self !== window.top;
-    } catch (e) {
-        return true;
-    }
-}
 
-function inElectron() {
-    return navigator.userAgent.indexOf("Electron")!=-1;
-}

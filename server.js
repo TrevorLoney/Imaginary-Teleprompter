@@ -110,7 +110,7 @@ http.createServer(function (request, response) {
             }
         });
         request.on('end', () => {
-            sessionStorage[path.basename(request.url)] = JSON.parse(data);
+            sessionStorage[path.basename(request.url)] = JSON.parse(data || null);
             response.end('success', 'utf-8');
         });
         console.log(request.body);
