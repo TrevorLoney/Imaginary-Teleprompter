@@ -21,44 +21,43 @@
 // Global variables
 var debug;
 var currentVersion = "2.3.4"
-function inElectron() {
-    return navigator.userAgent.indexOf("Electron")!=-1;
-}
 
 var dataManager = {
 	getItem: function(key,item,local,force){
-		if (local === 'undefined')
-		    local = 0;
-		if (inElectron() && local == 2)
-		    httpRequest("GET", key, item,force);
-		else if (inElectron() || local == 1)
-		    item(localStorage.getItem(key));
-		else
-		    item(sessionStorage.getItem(key));
+		if(location.pathname == "/"){
+			if (local == 1){
+				item(localStorage.getItem(key));
+			}
+			else {
+				item(sessionStorage.getItem(key));
+			}
+		}
+		else{
+			httpRequest("GET", "datamanager/" + key, item, force);
+		}
     },
     setItem: function (key,item,local) {
-		if (local === 'undefined')
-		    local = 0;
-		if (inElectron() && local == 2)
-		    httpRequest("POST",key,item,true);
-		else if (inElectron() || local == 1)
+		if (local == 1) {
 		    localStorage.setItem(key, item);
-		else
+		}
+		else {
 		    sessionStorage.setItem(key, item);
+		}
+		httpRequest("POST", "datamanager/" + key, item, true);
     },
     removeItem: function (key,local) {
-		if (local === 'undefined')
-		    local = 0;
-		if (inElectron() && local == 2)
-		    httpRequest("POST",key,item,true);
-		else if (inElectron() || local == 1)
+		if (local == 1){
 		    localStorage.removeItem(key);
-		else
+		}
+		else {
 		    sessionStorage.removeItem(key);
+		}
+		httpRequest("POST", "datamanager/" + key, null, true);
     },
     clearAll: function () {
     	sessionStorage.clear();
     	localStorage.clear();
+		httpRequest("POST", "datamanager/clear", null, true);
     }
 };
 
@@ -77,5 +76,11 @@ function httpRequest(type,theUrl,data,force) {
 		    }
 		}
     }
-    xmlhttp.send(data);
+	if (data === 'undefined'){
+		xmlhttp.send();
+	}
+	else{
+		xmlhttp.send(data);
+	}
+    
 }
