@@ -24,18 +24,14 @@ var currentVersion = "2.3.4"
 
 var dataManager = {
 	getItem: function(key,item,local,force){
-		if(location.pathname == "/"){
-			if (local == 1){
-				item(localStorage.getItem(key));
-			}
-			else {
-				item(sessionStorage.getItem(key));
-			}
+		if (local == 1){
+			item(localStorage.getItem(key));
 		}
-		else{
-			httpRequest("GET", "datamanager/" + key, item, force);
+		else {
+			item(sessionStorage.getItem(key));
 		}
     },
+
     setItem: function (key,item,local) {
 		if (local == 1) {
 		    localStorage.setItem(key, item);
@@ -43,8 +39,8 @@ var dataManager = {
 		else {
 		    sessionStorage.setItem(key, item);
 		}
-		httpRequest("POST", "datamanager/" + key, item, true);
     },
+
     removeItem: function (key,local) {
 		if (local == 1){
 		    localStorage.removeItem(key);
@@ -52,35 +48,11 @@ var dataManager = {
 		else {
 		    sessionStorage.removeItem(key);
 		}
-		httpRequest("POST", "datamanager/" + key, null, true);
     },
-    clearAll: function () {
+
+    clearAll: async function () {
     	sessionStorage.clear();
     	localStorage.clear();
-		httpRequest("POST", "datamanager/clear", null, true);
     }
+
 };
-
-
-function httpRequest(type,theUrl,data,force) {
-    if (data === 'undefined')
-	    data = "";
-    var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-    xmlhttp.open(type, theUrl, force);
-    xmlhttp.setRequestHeader("Content-Type", "application/json");
-    
-    xmlhttp.onreadystatechange = function() {
-		if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-		    if (type == "GET") {
-				data(xmlhttp.responseText);
-		    }
-		}
-    }
-	if (data === 'undefined'){
-		xmlhttp.send();
-	}
-	else{
-		xmlhttp.send(data);
-	}
-    
-}

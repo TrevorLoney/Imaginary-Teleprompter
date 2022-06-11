@@ -416,3 +416,7 @@ img.cke_anchor {
 .slider-handle {
 	cursor: pointer;
 }
+
+article.prompt {
+	max-width: 1200px !important;
+}

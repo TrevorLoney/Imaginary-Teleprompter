@@ -224,6 +224,7 @@ function refreshPromptStyles(promptStyleElement) {
 
 // Set Teleprompter Style.
 function setStyle(promptStyleOption) {
+    if (!promptStyleOption) return; 
     // Get page elements.
     var container = document.querySelector("#promptcontainer"),
         overlayBgs = document.getElementsByClassName("overlayBg"),

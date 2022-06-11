@@ -135,3 +135,25 @@ body {
 #overlayFocus {
 	height: 1.8em;
 }
+
+
+.Display #waitingOverlay {
+	z-index: 55;
+	position: fixed;
+	width: 100%;
+	height: 100%;
+	opacity: 1;
+	background-image: url(../img/teleprompter.png);
+	transform: scaleX(-1);
+	background-repeat: no-repeat;
+	background-position: center center;
+	background-color: #272822;
+}
+
+.Display.active #waitingOverlay {
+	display: none;
+}
+
+article.prompt {
+	max-width: 1200px !important;
+}

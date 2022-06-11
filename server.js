@@ -4,28 +4,18 @@ var fs = require('fs');
 var url = require('url');
 var path = require('path');
 var connections = [];
+
 var socket = new server({  
     httpServer: http.createServer().listen(1337)
 });
-var sessionStorage = {
-    test:"Hello"
-};
 
-socket.getUniqueID = function () {
-    function s4() {
-        return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
-    }
-    return s4() + s4() + '-' + s4();
-};
+socket.on('request', function(request) { 
 
-socket.on('request', function(request) {  
     var connection = request.accept(null, request.origin);
-    connection.uniqueId = socket.getUniqueID();
+    connection.resourceId = request.resource;
     connection.on('message', function(message) {
-        console.log(message.utf8Data);
         socket.connections.map(x=>{
-            if(connection.uniqueId !== x.uniqueId){
-                console.log(`${connection.uniqueId} => ${x.uniqueId} - ${message.utf8Data}`)
+            if(connection.resourceId !== x.resourceId){
                 x.sendUTF(message.utf8Data);
             }
         });
@@ -33,6 +23,11 @@ socket.on('request', function(request) {
 
     connection.on('close', function(conn) {
         console.log('connection closed');
+        socket.connections.map(x=>{
+            if(connection.resourceId !== x.resourceId){
+                x.sendUTF('{"request":14}');
+            }
+        });
     });
 });
 
@@ -40,13 +35,6 @@ socket.on('request', function(request) {
 
 http.createServer(function (request, response) {
     if(request.method==="GET"){
-        console.log('request starting...');
-        
-        if(request.url.startsWith("/datamanager/")){
-            response.writeHead(200, { 'Content-Type': 'application/json' });
-            response.end(JSON.stringify(sessionStorage[path.basename(request.url)]), 'utf-8');
-            return;
-        }
         
         var filePath = './prompt' + url.parse(request.url).pathname + (path.basename(request.url) == ''? 'index.html': '');
         
@@ -110,10 +98,9 @@ http.createServer(function (request, response) {
             }
         });
         request.on('end', () => {
-            sessionStorage[path.basename(request.url)] = JSON.parse(data);
+            sessionStorage[path.basename(request.url)] = JSON.parse(data || null);
             response.end('success', 'utf-8');
         });
-        console.log(request.body);
     }    
 }).listen(8125);    
 

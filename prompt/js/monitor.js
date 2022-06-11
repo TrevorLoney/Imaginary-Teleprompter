@@ -29,7 +29,7 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
 "use strict";
 
 // Encapsulate the code in an anonymous self-invoking function.
-(function () {
+(async function () {
         
     // Global objects
     var settings, session;
@@ -100,50 +100,28 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         cap = false;
         syncDelay = 12;
         
+        // Local Storage and Session data
+        updateDatamanager();
+        
         // Set initial relative values.
         setFocusHeight();
         setScreenHeight();
         setScreenWidth();
         updateUnit();
-        
+
         // Initialize CSS
         initCSS();
 
-        // Locate and set editor
-        if (window.opener){
-            console.log("Has Opener");
-        }
-        else if (window.top){
-            editor = window.top;
-            console.log("Has Top");
-        }
+        // D
+        console.log("Send start");
 
-        var socket = await new Promise((resolve,reject)=>{
-            
-            console.log() 
-
-            const sock = new WebSocket('ws://' + window.location.hostname + ':1337/TelePrompter');
-
-            sock.onopen = function () {
-
-                const _postmessage = editor.postMessage;
-                editor.postMessage = function(event, domain) {
-                    sock.send(JSON.stringify(event));
-                    _postmessage.apply(this, arguments);
-                }
-                sock.onmessage = function (message) {
-                    console.log(message.data);
-                    console.log(JSON.parse(message.data));
-                    _postmessage(JSON.parse(message.data));
-                };
-                resolve(sock);
-            };
-    
-            sock.onerror = function (error) {
-                console.log('WebSocket error: ' + error);
-            };
-
-        });
+        editor.postMessage({
+            'request':command.initialiseSession, 
+            'data': {
+                'IFTeleprompterSettings': settings,
+                'IFTeleprompterSession': session
+            }
+        },domain);
 
         resetSteps();
         // Animation settings
@@ -166,21 +144,21 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
             flip = settings.data.secondary;
         
         // Initialize flip values
-        flipH = true;
+        flipH = false;
         flipV = false;
         // Set flip values to prompter settings
-        // switch (flip) {
-        //     case 2:
-        //         flipH = true;
-        //         break;
-        //     case 3:
-        //         flipV = true;
-        //         break;
-        //     case 4:
-        //         flipH = true;
-        //         flipV = true;
-        //         break;
-        // }
+        switch (flip) {
+            case 2:
+                flipH = true;
+                break;
+            case 3:
+                flipV = true;
+                break;
+            case 4:
+                flipH = true;
+                flipV = true;
+                break;
+        }
         // Set focus area according to settings.
         switch (focus) {
             case 1:
@@ -246,8 +224,23 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         }, 750);
     }
 
+    function updateDatamanager() {
+        dataManager.getItem('IFTeleprompterSettings',function(data){
+            settings = JSON.parse(data || null);
+            console.log(settings);
+        },1,false);
+        
+        dataManager.getItem('IFTeleprompterSession',function(data){
+            session = JSON.parse(data || null);
+            console.log(session);
+        },1,false);
+
+    }
+
     async function updateContents() {
         
+        updateDatamanager();
+
         var oldFontSize = fontSize, oldPromptWidth = promptWidth;
         fontSize = settings.data.fontSize/100;
         speedMultip = settings.data.speed;
@@ -354,19 +347,20 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
     function closeInstance() {
         if (!closing) {
             closing = true;
-
-            animate(0, 0);
-            timer.stopTimer();
             // Finally, close this window or clear iFrame. The editor must not be the one who closes cause it could cause an infinite loop.
-            $("body").removeClass("active");
-
-            closing = false;
+            if ( inIframe() ) {
+                if (debug) console.log("Closing iFrame prompter.") && false;
+                document.location = "about:blank";//"blank.html";
+            }
+            else {
+                if (debug) console.log("Closing window prompter.") && false;
+                window.close();
+            }
         }
     }
 
     // On close
     window.addEventListener("beforeunload", restoreRequest);
-
 
     function setFlips() {
         //dev@javi: Add support for real-time flipping.
@@ -431,7 +425,6 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         updateVelocity();
         resumeAnimation();
         timer.stopTimer();
-        location.reload();
     }
 
     document.addEventListener( 'transitionend', function() {
@@ -927,20 +920,20 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
     }
 
     function toggleAnimation() {
-        if ( play ) {
+        if ( play )
             pauseAnimation();
-        }
-        else {
+        else
             playAnimation();
-        }
     }
 
     function pauseAnimation() {
         editor.postMessage( {'request':command.pause} );
+        if (debug) console.log("Paused") && false;
     }
 
     function playAnimation() {
         editor.postMessage( {'request':command.play} );
+        if (debug) console.log("Playing") && false;
     }
     
     function internalPauseAnimation() {
@@ -960,6 +953,10 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         resumeAnimation();
     }
 
+    function resetTimer() {
+        editor.postMessage( {'request':command.resetTimer} );
+    }
+
     function internalResetTimer() {
         timer.resetTimer();
         playAnimation();
@@ -967,23 +964,20 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
     }
 
     function initialiseSession(data){
+        $("body").removeClass("Display");
         settings = data.IFTeleprompterSettings;
         session = data.IFTeleprompterSession;
-        init();
         updateContents();
-        $("body").addClass("active");
     }
 
     function listener(event) {
-        console.log(event.data.request);
+        
         // If the event comes from the same domain...
         if (!cap&&!event.domain||event.domain===getDomain()) {
             // Act according to the message.
             var message = event.data;
-            if(message.request==command.increaseVelocity||message.request==command.decreaseVelocity){
+            if(message.request==command.increaseVelocity||message.request==command.decreaseVelocity)
                 setCap();
-            }
-                
             switch (message.request) {
                 case 1 :
                     internalIncreaseVelocity();
@@ -1056,7 +1050,6 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
                     break;
                 case command.initialiseSession :
                     initialiseSession(message.data);
-                    updateContents();
                     break;
                 default :
                     // Notify unknown message received.
@@ -1076,7 +1069,105 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         cap = true;
         setTimeout(resetCap, inputCapDelay);
     }
-   
+
+    function toggleTouchControls() {
+
+    }
+
+    document.onkeydown = function( event ) {
+        var key;
+        // keyCode is announced to be deprecated but not all browsers support key as of 2016.
+        if (event.key === undefined)
+            event.key = event.keyCode;
+        if (debug) console.log("Key: "+event.key) && false;
+        switch ( event.key ) {
+            case "s":
+            case "S":
+            case "ArrowDown":
+            case 40: // Down
+            case 68: // S
+                increaseVelocity();
+                break;
+            case "w":
+            case "W":
+            case "ArrowUp":
+            case 38: // Up
+            case 87: // W
+                decreaseVelocity();
+                break;
+            case "d":
+            case "D":
+            case "ArrowRight":
+            case 83: // S
+            case 39: // Right
+                increaseFontSize();
+                break;
+            case "a":
+            case "A":
+            case "ArrowLeft":
+            case 37: // Left
+            case 65: // A
+                decreaseFontSize();
+                break;
+            case " ":           
+            case 32: // Spacebar
+                toggleAnimation();
+                break;
+            case ".":
+            case 110: // Numpad dot
+            case 190: // Dot
+                syncPrompters();
+                break;
+            case "Escape":
+            case 27: // ESC
+                closeInstance();
+                break;
+            case 121:
+            case "F10":
+            case 123:
+            case "F12":
+                if (!inIframe())
+                    toggleDebug();
+                break;
+            case 8:
+            case "Backspace":
+            case "backspace":
+                resetTimer();
+                break;
+            case 36:
+            case "Home":
+                editor.postMessage( {'request':command.previousAnchor} );
+                break;
+            case 35:
+            case "End":
+                editor.postMessage( {'request':command.nextAnchor} );
+                break;
+            case 34 :
+            case "PageDown" :
+                editor.postMessage( {'request':command.fastForward} );
+                break;
+            case 33 :
+            case "PageUp" :
+                editor.postMessage( {'request':command.rewind} );
+                break;
+            default: // Move to anchor.
+                // If key is not a string
+                if(!isFunction(event.key.indexOf))
+                    key = String.fromCharCode(event.key);
+                else
+                    key = event.key;
+                //if ( key.indexOf("Key")===0 || key.indexOf("Digit")===0 )
+                //      key = key.charAt(key.length-1);
+                if ( !is_int(key) )
+                    key = key.toLowerCase();
+                if (debug) console.log(key);
+                moveToAnchor( key );
+        }
+        // Prevent arrow and spacebar scroll bug.
+        if ([" ","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(event.key) > -1 && event.preventDefault)
+            event.preventDefault();
+    };
+
     function isFunction( possibleFunction ) {
         return typeof(possibleFunction)===typeof(Function)
     }
@@ -1087,14 +1178,43 @@ https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange
         else
             return false;
     }
+    
+    editor = window.top;
+
+    var socket = await new Promise((resolve,reject)=>{
+            
+        console.log() 
+
+        const sock = new WebSocket('ws://' + window.location.hostname + ':1337/Monitor');
+
+        sock.onopen = function () {
+
+            const _postmessage = editor.postMessage;
+            editor.postMessage = function(event, domain) {
+                sock.send(JSON.stringify(event));
+                _postmessage.apply(this, arguments);
+            }
+            sock.onmessage = function (message) {
+                _postmessage(JSON.parse(message.data));
+            };
+            resolve(sock);
+        };
+
+        sock.onerror = function (error) {
+            console.log('WebSocket error: ' + error);
+        };
+
+    });
 
     // Initialize objects after DOM is loaded
-    if (document.readyState === "interactive" || document.readyState === "complete")
+    if (document.readyState === "interactive" || document.readyState === "complete"){
         // Call init if the DOM (interactive) or document (complete) is ready.
         init();
-    else
+    }
+    else {
         // Set init as a listener for the DOMContentLoaded event.
         document.addEventListener("DOMContentLoaded", init);
+    }
 
 }());
 
